@@ -1,0 +1,15 @@
+{% extends "base_email.html" %}
+
+{% block content %}
+    <h1 class="header">Добро пожаловать!</h1>
+    <div class="content">
+        <p>Ваш аккаунт успешно создан.</p>
+        <p>Логин: <strong>{{ username }}</strong></p>
+        <p>Дата регистрации: {{ created_at }}</p>
+        
+        <p>Для входа в аккаунт используйте:</p>
+        <a href="{{ login_url }}" class="button">Войти в аккаунт</a>
+        
+        <p>Если вы не регистрировались, проигнорируйте это письмо.</p>
+    </div>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base_email.html" %}
+
+{% block content %}
+    <h1 class="header">Подтверждение действия</h1>
+    <div class="content">
+        <p>Для завершения действия введите следующий код:</p>
+        
+        <div style="font-size: 24px; letter-spacing: 3px; margin: 20px 0;">
+            <strong>{{ code }}</strong>
+        </div>
+        
+        <p>Код действителен в течение {{ expires_in }} минут.</p>
+        
+        <p style="color: #e74c3c;">
+            Никому не сообщайте этот код!
+        </p>
+    </div>
+{% endblock %}
