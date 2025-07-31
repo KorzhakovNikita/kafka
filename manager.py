@@ -67,6 +67,7 @@ class KafkaManager:
     async def restart(self):
         logger.info("Restarting KafkaManager...")
         await self.stop()
+        await asyncio.sleep(1)
         await self.start()
 
     async def run(self):

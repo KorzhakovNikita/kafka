@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import uvicorn
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from aiokafka.admin import AIOKafkaAdminClient, NewTopic
 
 from config import configure_logging, KafkaConfig
@@ -9,7 +9,6 @@ from containers import get_event_manager
 from dependencies import KafkaDepState
 from manager import KafkaManager
 from schemas.messages import KafkaMessage
-from services.notification import NotificationsService
 
 app = FastAPI(title="Kafka")
 
@@ -53,12 +52,31 @@ async def create_topic(topic: str):
 
 @app.post("/send-message")
 async def send_message(topic: str, msg: KafkaMessage, kafka: KafkaDepState):
-    await kafka.producer.send(topic, msg)
+    response = {
+        "topic": topic,
+        "event": msg.event,
+    }
+
+    try:
+        await kafka.producer.send(topic, msg)
+        response["status"] = "success"
+    except Exception as e:
+        error_msg = f"Failed to send message to topic '{topic}': {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        response["status"] = "error"
+        response["error"] = str(e)
+
+    return response
 
 
 @app.post("/restart")
 async def restart_manager(kafka: KafkaDepState):
-    await kafka.restart()
+    try:
+        await kafka.restart()
+        return {"message": "Kafka manager restarted successfully"}
+    except Exception as e:
+        logger.error("Error restarting Kafka manager: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to restart Kafka manager")
 
 
 @app.get("/health-check")
@@ -68,10 +86,6 @@ async def health_check(kafka: KafkaDepState):
         "producer": await kafka.producer.health_check()
     }
 
-
-@app.post("/send-email")
-async def send(msg: str, service: NotificationsService = Depends()):
-    await service.send(is_html=False)
 
 if __name__ == "__main__":
     uvicorn.run(

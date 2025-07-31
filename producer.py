@@ -34,9 +34,9 @@ class KafkaProducer(BaseKafkaClient):
                 **self._producer_config.model_dump(),
                 value_serializer=self._serialize_message
             )
-            self._dlq_manager = DLQManager(self._producer)
             await self._producer.start()
-
+            self._dlq_manager = DLQManager(self._producer)
+            self._is_running = True
             logger.info("Starting Kafka producer")
         except Exception as e:
             logger.error("Failed to start producer: %s", str(e), exc_info=True)
