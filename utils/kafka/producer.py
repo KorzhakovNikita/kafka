@@ -21,6 +21,10 @@ class KafkaProducer(BaseKafkaClient):
         self._dlq_manager: Optional[DLQManager] = None
         self._is_running = False
 
+    @property
+    def dlq_manager(self):
+        return self._dlq_manager
+
     def _serialize_message(self, value):
         serializer = self.serializer_register.get_serializer(value)
         return serializer.serialize(value)

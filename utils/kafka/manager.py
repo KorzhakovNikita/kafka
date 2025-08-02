@@ -77,15 +77,28 @@ class KafkaManager:
             while True:
                 async for message in self._consumer.get_message():
                     logger.info("Received message: %s", message)
-
                     event_handler: AbstractEvent = await self._event_manager.get_event_handler(message.value["event"])
-                    message = KafkaMessage(data=message.value["data"], event=message.value["event"])
-                    _ = asyncio.create_task(handle_async_event(event_handler, message))
+                    msg = KafkaMessage(data=message.value["data"], event=message.value["event"])
+                    _ = asyncio.create_task(self.handle_event(event_handler, msg, message.topic))
+        except asyncio.CancelledError:
+            logger.info("Consumer shutdown requested")
         except Exception as e:
-            logger.error(e)
-
+            logger.critical("Fatal consumer error: %s", e)
+            raise
         finally:
             await self.stop()
+
+    async def handle_event(self, event_handler: AbstractEvent, message: KafkaMessage, original_topic: str):
+        try:
+            await event_handler.process_event(message)
+        except Exception as e:
+            logger.error(
+                "Unexpected error processing %s: %s",
+                message.event, str(e),
+            )
+            await self._producer.dlq_manager.send_to_dlq(original_topic, message, e)
+        else:
+            logger.info("The event '%s' was successful", message.event.title())
 
     async def __aenter__(self):
         await self.start()
@@ -94,13 +107,3 @@ class KafkaManager:
     async def __aexit__(self, *args):
         if self._started:
             await self.stop()
-
-
-async def handle_async_event(event_handler: AbstractEvent, message: KafkaMessage):
-    try:
-        await event_handler.process_event(message)
-    except Exception as e:
-        logger.exception(str(e))
-    else:
-        logger.info("The event '%s' was successful", message.event.title())
-

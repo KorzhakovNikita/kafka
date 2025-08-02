@@ -11,7 +11,7 @@ class KafkaMessage(BaseModel):
 
 class ExceptionKafkaMessage(BaseModel):
     message: KafkaMessage
-    destination_topic: str
+    original_topic: str
     error: str
     traceback: Optional[str] = None
     timestamp: datetime = datetime.utcnow()

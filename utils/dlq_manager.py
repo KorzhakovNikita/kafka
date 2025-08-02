@@ -21,7 +21,7 @@ class DLQManager:
         return ExceptionKafkaMessage(
             message=message,
             error=str(error),
-            destination_topic=topic,
+            original_topic=topic,
             traceback=traceback.format_exc()
         )
 
