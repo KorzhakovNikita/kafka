@@ -2,11 +2,11 @@ import asyncio
 import logging
 from typing import Optional
 from config import KafkaConfig
-from consumer import KafkaConsumer
+from utils.kafka.consumer import KafkaConsumer
 from schemas.messages import KafkaMessage
-from utils.event_container import EventContainer
+from utils.containers.event_container import EventContainer
 from events.base_event import AbstractEvent
-from producer import KafkaProducer
+from utils.kafka.producer import KafkaProducer
 
 logger = logging.getLogger(__name__)
 

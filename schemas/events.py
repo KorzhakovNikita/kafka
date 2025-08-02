@@ -1,13 +1,14 @@
+from datetime import date
 from enum import Enum
 from typing import Union
 
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, Field
 
 
 class EmailType(str, Enum):
     ACCOUNT_CREATED = 'account_created'
     CONFIRMATION = 'confirmation_code'
-    CUSTOM_LINK = 'custom_link'
+    NEW_PROMOCODE = 'new_promocode'
 
 
 class AccountCreatedSchema(BaseModel):
@@ -21,7 +22,13 @@ class ConfirmationCodeSchema(BaseModel):
     expires_in: int
 
 
+class PromoCodeSchema(BaseModel):
+    promo_code: str
+    discount_amount: int = Field(ge=0, le=100)
+    expiry_date: date
+
+
 class SendEmailEventSchema(BaseModel):
     email_type: EmailType
-    template_params: Union[AccountCreatedSchema, ConfirmationCodeSchema]
+    template_params: Union[AccountCreatedSchema, ConfirmationCodeSchema, PromoCodeSchema]
 

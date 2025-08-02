@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import Depends
-from manager import KafkaManager
+from utils.kafka.manager import KafkaManager
 
 
 async def get_kafka_manager_state() -> KafkaManager:

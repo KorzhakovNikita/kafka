@@ -28,6 +28,6 @@ class KafkaConsumerConfig(BaseModel):
 
 class KafkaConfig(BaseModel):
     bootstrap_servers: list[str] = ["localhost:9092"]
-    topic: str = "test-topic"
+    topic: str = "email"
     producer: KafkaProducerConfig = Field(default_factory=KafkaProducerConfig)
     consumer: KafkaConsumerConfig = Field(default_factory=KafkaConsumerConfig)

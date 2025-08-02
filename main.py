@@ -1,13 +1,13 @@
 import asyncio
 import logging
 import uvicorn
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, HTTPException
 from aiokafka.admin import AIOKafkaAdminClient, NewTopic
 
 from config import configure_logging, KafkaConfig
-from containers import get_event_manager
+from utils.containers.service_container import get_event_manager
 from dependencies import KafkaDepState
-from manager import KafkaManager
+from utils.kafka.manager import KafkaManager
 from schemas.messages import KafkaMessage
 
 app = FastAPI(title="Kafka")

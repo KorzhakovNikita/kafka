@@ -12,7 +12,7 @@ from settings import settings
 
 class NotificationsService(AbstractNotificationsService):
 
-    async def send(self, html, subject: str = "KAFKA"):
+    async def send(self, html, subject: str = "KAFKA-EMAIL"):
         msg = MIMEMultipart()
         msg['From'] = settings.SMTP_USERNAME
         msg['To'] = settings.SMTP_USERNAME # your recipient

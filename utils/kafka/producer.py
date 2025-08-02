@@ -4,7 +4,7 @@ from typing import Optional
 from aiokafka import AIOKafkaProducer
 
 from config import KafkaProducerConfig
-from dlq_manager import DLQManager
+from utils.dlq_manager import DLQManager
 from infrastructure.kafka_clients import BaseKafkaClient
 from schemas.messages import KafkaMessage
 from utils.serializer import SerializerRegister
