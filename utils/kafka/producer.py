@@ -82,4 +82,15 @@ class KafkaProducer(BaseKafkaClient):
                 error=e,
             )
 
+    async def __aenter__(self):
+        await self.start()
+        return self
+
+    async def __aexit__(self, *args):
+        if self._is_running:
+            await self.stop()
+
+
+producer = KafkaProducer(KafkaProducerConfig())
+
 

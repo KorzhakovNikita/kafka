@@ -1,10 +1,11 @@
 import logging
 from typing import Union, List, Optional, AsyncGenerator
 
-from aiokafka import AIOKafkaConsumer, ConsumerRecord
+from aiokafka import AIOKafkaConsumer, ConsumerRecord, TopicPartition
 import json
 from config import KafkaConsumerConfig
 from infrastructure.kafka_clients import BaseKafkaClient
+from schemas.messages import MessageMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -52,16 +53,13 @@ class KafkaConsumer(BaseKafkaClient):
             self._is_running = False
             self._consumer = None
 
-    async def health_check(self):
-        return {
-            "status": "running" if self._is_running else "stopped",
-            "subscription": self._consumer.subscription(),
-            "assignment": [f"{t}-{p}" for t, p in self._consumer.assignment()],
-        }
-
     async def get_message(self) -> AsyncGenerator[ConsumerRecord, None]:
         async for msg in self._consumer:
             yield msg
+
+    async def commit(self, msg: MessageMetadata):
+        tp = TopicPartition(msg.topic, msg.partition)
+        await self._consumer.commit({tp: msg.offset + 1})
 
     async def subscribe(self, topics: Union[str, List[str]]):
         if not self._is_running:
@@ -72,3 +70,10 @@ class KafkaConsumer(BaseKafkaClient):
 
         self._consumer.subscribe(topics)
         logger.info(f"Subscribed to topics %s:", topics)
+
+    async def health_check(self) -> dict:
+        return {
+            "status": "running" if self._is_running else "stopped",
+            "subscription": self._consumer.subscription(),
+            "assignment": [f"{t}-{p}" for t, p in self._consumer.assignment()],
+        }

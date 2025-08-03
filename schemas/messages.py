@@ -4,13 +4,23 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-class KafkaMessage(BaseModel):
+class BaseKafkaMessage(BaseModel):
     data: dict
     event: str
 
 
+class MessageMetadata(BaseModel):
+    topic: str
+    partition: int
+    offset: int
+
+
+class KafkaMessage(BaseKafkaMessage):
+    message_metadata: MessageMetadata
+
+
 class ExceptionKafkaMessage(BaseModel):
-    message: KafkaMessage
+    message: BaseKafkaMessage
     original_topic: str
     error: str
     traceback: Optional[str] = None

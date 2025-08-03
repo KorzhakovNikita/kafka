@@ -8,7 +8,8 @@ from config import configure_logging, KafkaConfig
 from utils.containers.service_container import get_event_manager
 from dependencies import KafkaDepState
 from utils.kafka.manager import KafkaManager
-from schemas.messages import KafkaMessage
+from schemas.messages import KafkaMessage, BaseKafkaMessage
+from utils.kafka.producer import producer
 
 app = FastAPI(title="Kafka")
 
@@ -51,14 +52,15 @@ async def create_topic(topic: str):
 
 
 @app.post("/send-message")
-async def send_message(topic: str, msg: KafkaMessage, kafka: KafkaDepState):
+async def send_message(topic: str, msg: BaseKafkaMessage):
     response = {
         "topic": topic,
         "event": msg.event,
     }
 
     try:
-        await kafka.producer.send(topic, msg)
+        async with producer as p:
+            p.send(topic, msg)
         response["status"] = "success"
     except Exception as e:
         error_msg = f"Failed to send message to topic '{topic}': {str(e)}"
