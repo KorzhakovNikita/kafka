@@ -8,7 +8,7 @@ from config import configure_logging, KafkaConfig
 from utils.containers.service_container import get_event_manager
 from dependencies import KafkaDepState
 from utils.kafka.manager import KafkaManager
-from schemas.messages import KafkaMessage, BaseKafkaMessage
+from schemas.messages import BaseKafkaMessage
 from utils.kafka.producer import producer
 
 app = FastAPI(title="Kafka")

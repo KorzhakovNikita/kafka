@@ -1,18 +1,16 @@
 import logging
 import traceback
 from typing import Optional
-
-from aiokafka import AIOKafkaProducer
-
 from config import DLQConfig
 from schemas.messages import KafkaMessage, ExceptionKafkaMessage
+from utils.kafka.producer import KafkaProducer
 
 logger = logging.getLogger(__name__)
 
 
 class DLQManager:
 
-    def __init__(self, producer: AIOKafkaProducer, dlq_config: Optional[DLQConfig] = None):
+    def __init__(self, producer: KafkaProducer, dlq_config: Optional[DLQConfig] = None):
         self.dlq_config = dlq_config or DLQConfig()
         self._producer = producer
 
@@ -28,7 +26,7 @@ class DLQManager:
     async def send_to_dlq(self, topic, message, error) -> None:
         try:
             logger.warning(
-                f"Attempting to send failed message (%s) - original_topic %s to DLQ topic",
+                f"Attempting to send failed message (%s) to DLQ topic",
                 message, topic)
             msg = self._build_dlq_message(topic, message, error)
             await self._producer.send(self.dlq_config.default_topic, msg)

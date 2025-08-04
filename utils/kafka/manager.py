@@ -3,6 +3,7 @@ import logging
 
 from typing import Optional
 from config import KafkaConfig
+from utils.dlq_manager import DLQManager
 from utils.kafka.consumer import KafkaConsumer
 from schemas.messages import KafkaMessage, MessageMetadata
 from utils.containers.event_container import EventContainer
@@ -16,7 +17,8 @@ class KafkaManager:
 
     def __init__(self, config: KafkaConfig, event_manager: EventContainer):
         self._config = config
-        self._event_manager = event_manager
+        self._event_manager: EventContainer = event_manager
+        self._dlq_manager: Optional[DLQManager] = None
 
         self._max_retries = config.retry.max_retries
         self._base_delay = config.retry.backoff_ms / 1000  # sec
@@ -47,6 +49,7 @@ class KafkaManager:
             self._consumer = KafkaConsumer(self._config.topic, self._config.consumer)
         if self._producer is None:
             self._producer = KafkaProducer(self._config.producer)
+            self._dlq_manager = DLQManager(self._producer)
 
         await self._consumer.start()
         await self._producer.start()
@@ -66,6 +69,8 @@ class KafkaManager:
         if self._producer:
             await self._producer.stop()
             self._producer = None
+            self._dlq_manager = None
+
         self._started = False
 
         logger.info("KafkaManager stopped successfully.")
@@ -116,7 +121,8 @@ class KafkaManager:
                         "Retrying handle message %s in topic %s because of %s. Attempt number %s",
                         message, original_topic, e, attempt
                     )
-                    delay = self._base_delay / 1000 * (2 ** attempt)
+                    delay = self._base_delay * (2 ** attempt)
                     await asyncio.sleep(delay)
                 else:
-                    await self._producer.dlq_manager.send_to_dlq(original_topic, message, e)
+                    await self._dlq_manager.send_to_dlq(original_topic, message, e)
+                    break

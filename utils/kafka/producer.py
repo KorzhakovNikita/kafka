@@ -4,7 +4,6 @@ from typing import Optional
 from aiokafka import AIOKafkaProducer
 
 from config import KafkaProducerConfig
-from utils.dlq_manager import DLQManager
 from infrastructure.kafka_clients import BaseKafkaClient
 from schemas.messages import KafkaMessage
 from utils.serializer import SerializerRegister
@@ -18,12 +17,7 @@ class KafkaProducer(BaseKafkaClient):
         self._producer_config = producer_config
         self.serializer_register = SerializerRegister()
         self._producer: Optional[AIOKafkaProducer] = None
-        self._dlq_manager: Optional[DLQManager] = None
         self._is_running = False
-
-    @property
-    def dlq_manager(self):
-        return self._dlq_manager
 
     def _serialize_message(self, value):
         serializer = self.serializer_register.get_serializer(value)
@@ -39,7 +33,6 @@ class KafkaProducer(BaseKafkaClient):
                 value_serializer=self._serialize_message
             )
             await self._producer.start()
-            self._dlq_manager = DLQManager(self._producer)
             self._is_running = True
             logger.info("Starting Kafka producer")
         except Exception as e:
@@ -66,7 +59,6 @@ class KafkaProducer(BaseKafkaClient):
         }
 
     async def send(self, topic: str, message: KafkaMessage):
-
         try:
             logger.info(f"Publish message: %s to topic %s", message, topic)
             await self._producer.send(topic, message)
@@ -75,11 +67,6 @@ class KafkaProducer(BaseKafkaClient):
                 f"Failed to publish message to topic: %s to topic. Error: %s",
                 message, str(e),
                 exc_info=True
-            )
-            return await self._dlq_manager.send_to_dlq(
-                topic,
-                message,
-                error=e,
             )
 
     async def __aenter__(self):

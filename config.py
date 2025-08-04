@@ -1,5 +1,5 @@
 import logging
-from typing import Tuple, Type
+from typing import Tuple, Type, Union, Literal
 
 from pydantic import BaseModel, Field
 
@@ -17,6 +17,7 @@ class DLQConfig(BaseModel):
 
 
 class KafkaProducerConfig(BaseModel):
+    acks: Union[Literal["all", "0", "1", "-1"], int] = 1
     retry_backoff_ms: int = 100
     max_batch_size: int = 16384
 
