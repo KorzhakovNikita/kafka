@@ -16,6 +16,12 @@ class DLQConfig(BaseModel):
     default_topic: str = "dlq-topic"
 
 
+class KafkaRetryConfig(BaseModel):
+    backoff_ms: int = 1000
+    max_retries: int = 3
+    retryable_errors: Tuple[Type[BaseException], ...] = (TimeoutError, ConnectionError)
+
+
 class KafkaProducerConfig(BaseModel):
     acks: Union[Literal["all", "0", "1", "-1"], int] = 1
     retry_backoff_ms: int = 100
@@ -23,15 +29,10 @@ class KafkaProducerConfig(BaseModel):
 
 
 class KafkaConsumerConfig(BaseModel):
+    retry: KafkaRetryConfig = Field(default_factory=KafkaRetryConfig)
     group_id: str = "default-group"
     auto_offset_reset: str = "earliest"
     enable_auto_commit: bool = False
-
-
-class KafkaRetryConfig(BaseModel):
-    backoff_ms: int = 1000
-    max_retries: int = 3
-    retryable_errors: Tuple[Type[BaseException], ...] = (TimeoutError, ConnectionError)
 
 
 class KafkaConfig(BaseModel):
@@ -39,4 +40,3 @@ class KafkaConfig(BaseModel):
     topic: str = "email"
     producer: KafkaProducerConfig = Field(default_factory=KafkaProducerConfig)
     consumer: KafkaConsumerConfig = Field(default_factory=KafkaConsumerConfig)
-    retry: KafkaRetryConfig = Field(default_factory=KafkaRetryConfig)

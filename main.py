@@ -60,7 +60,7 @@ async def send_message(topic: str, msg: BaseKafkaMessage):
 
     try:
         async with producer as p:
-            p.send(topic, msg)
+            await p.send(topic, msg)
         response["status"] = "success"
     except Exception as e:
         error_msg = f"Failed to send message to topic '{topic}': {str(e)}"

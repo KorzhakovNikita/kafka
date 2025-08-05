@@ -26,8 +26,8 @@ class DLQManager:
     async def send_to_dlq(self, topic, message, error) -> None:
         try:
             logger.warning(
-                f"Attempting to send failed message (%s) to DLQ topic",
-                message, topic)
+                f"Attempting to send failed message to DLQ topic. Message: %s",
+                message)
             msg = self._build_dlq_message(topic, message, error)
             await self._producer.send(self.dlq_config.default_topic, msg)
         except Exception as dlq_error:

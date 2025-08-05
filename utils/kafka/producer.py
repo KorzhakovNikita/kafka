@@ -60,7 +60,7 @@ class KafkaProducer(BaseKafkaClient):
 
     async def send(self, topic: str, message: KafkaMessage):
         try:
-            logger.info(f"Publish message: %s to topic %s", message, topic)
+            logger.info(f"Publish message: %s to %s", message, topic)
             await self._producer.send(topic, message)
         except Exception as e:
             logger.error(
