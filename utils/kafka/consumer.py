@@ -1,8 +1,7 @@
 import asyncio
 import datetime
 import logging
-from typing import Union, List, Optional, AsyncGenerator
-
+from typing import Union, List, Optional, AsyncGenerator, TYPE_CHECKING
 from aiokafka import AIOKafkaConsumer, ConsumerRecord, TopicPartition
 import json
 from aiokafka.errors import KafkaConnectionError, NoBrokersAvailable
@@ -96,7 +95,7 @@ class KafkaConsumer(BaseKafkaClient):
         for attempt in range(1, self._max_retries + 1):
             try:
                 start = datetime.datetime.now()
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.01)
                 await event_handler.process_event(parsed_msg)
                 await self.commit(parsed_msg.message_metadata)
                 end = datetime.datetime.now()

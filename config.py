@@ -35,8 +35,13 @@ class KafkaConsumerConfig(BaseModel):
     enable_auto_commit: bool = False
 
 
+class ConsumerGroupConfig(BaseModel):
+    consumer_config: KafkaConsumerConfig = Field(default_factory=KafkaConsumerConfig)
+    consumer_count: int = 2
+
+
 class KafkaConfig(BaseModel):
     bootstrap_servers: list[str] = ["localhost:9092"]
     topic: str = "email"
     producer: KafkaProducerConfig = Field(default_factory=KafkaProducerConfig)
-    consumer: KafkaConsumerConfig = Field(default_factory=KafkaConsumerConfig)
+    consumer_group: ConsumerGroupConfig = Field(default_factory=ConsumerGroupConfig)

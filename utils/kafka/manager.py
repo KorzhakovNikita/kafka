@@ -7,6 +7,7 @@ from utils.dlq_manager import DLQManager
 from utils.kafka.consumer import KafkaConsumer
 from utils.containers.event_container import EventContainer
 from events.base_event import AbstractEvent
+from utils.kafka.consumer_group import ConsumerGroup
 from utils.kafka.producer import KafkaProducer
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ class KafkaManager:
         self._config = config
         self._event_manager: EventContainer = event_manager
         self._dlq_manager: Optional[DLQManager] = None
-        self._consumer: Optional[KafkaConsumer] = None
+        self._consumer_group: Optional[ConsumerGroup] = None
         self._producer: Optional[KafkaProducer] = None
         self._started = False
 
@@ -39,13 +40,13 @@ class KafkaManager:
             logger.warning("KafkaManager is already started.")
             return
 
-        if self._consumer is None:
-            self._consumer = KafkaConsumer(self._config.topic, self._config.consumer)
+        if self._consumer_group is None:
+            self._consumer_group = ConsumerGroup(self._config.topic, self._config.consumer_group, self._event_manager)
         if self._producer is None:
             self._producer = KafkaProducer(self._config.producer)
             self._dlq_manager = DLQManager(self._producer)
 
-        await self._consumer.start()
+        await self._consumer_group.start()
         await self._producer.start()
 
         self._started = True
@@ -56,8 +57,8 @@ class KafkaManager:
             logger.warning("KafkaManager is not started or already stopped.")
             return
 
-        if self._consumer:
-            await self._consumer.stop()
+        if self._consumer_group:
+            await self._consumer_group.stop()
             self._consumer = None
 
         if self._producer:
@@ -79,13 +80,12 @@ class KafkaManager:
         await self.start()
         logger.info("KafkaManager processing. Waiting for messages...")
         try:
-            while True:
-                async for message in self._consumer.get_message():
-                    logger.info("Received message: %s", message)
-                    event_handler: AbstractEvent = await self._event_manager.get_event_handler(message.value["event"])
-                    parsed_msg, error = await self._consumer.process_message(event_handler, message)
-                    if error:
-                        await self._dlq_manager.send_to_dlq(message.topic, parsed_msg, error)
+            async for message, consumer in self._consumer_group.get_message():
+                logger.info("Received message: %s", message)
+                event_handler: AbstractEvent = await self._event_manager.get_event_handler(message.value["event"])
+                parsed_msg, error = await consumer.process_message(event_handler, message)
+                if error:
+                    await self._dlq_manager.send_to_dlq(message.topic, parsed_msg, error)
         except asyncio.CancelledError:
             logger.info("Consumer shutdown requested")
         except Exception as e:
