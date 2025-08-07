@@ -2,6 +2,7 @@ import logging
 from typing import Optional
 
 from aiokafka import AIOKafkaProducer
+from aiokafka.errors import KafkaConnectionError, NoBrokersAvailable
 
 from config import KafkaProducerConfig
 from infrastructure.kafka_clients import BaseKafkaClient
@@ -35,8 +36,12 @@ class KafkaProducer(BaseKafkaClient):
             await self._producer.start()
             self._is_running = True
             logger.info("Starting Kafka producer")
-        except Exception as e:
-            logger.error("Failed to start producer: %s", str(e), exc_info=True)
+        except KafkaConnectionError as e:
+            logger.error("Failed to connect to Kafka: %s", str(e), exc_info=True)
+            raise
+        except NoBrokersAvailable as e:
+            logger.error("No Kafka brokers available: %s", str(e), exc_info=True)
+            raise
 
     async def stop(self):
         if not self._is_running:

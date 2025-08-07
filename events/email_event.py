@@ -1,6 +1,6 @@
 from events.base_event import AbstractEvent
 from infrastructure.service_container import AbstractServiceContainer
-from schemas.events import SendEmailEventSchema, PromoCodeSchema
+from schemas.events import SendEmailEventSchema
 from utils.template_manager import template_manager
 
 

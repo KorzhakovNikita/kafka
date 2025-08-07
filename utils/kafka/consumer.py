@@ -1,9 +1,11 @@
 import asyncio
+import datetime
 import logging
 from typing import Union, List, Optional, AsyncGenerator
 
 from aiokafka import AIOKafkaConsumer, ConsumerRecord, TopicPartition
 import json
+from aiokafka.errors import KafkaConnectionError, NoBrokersAvailable
 from config import KafkaConsumerConfig
 from events.base_event import AbstractEvent
 from infrastructure.kafka_clients import BaseKafkaClient
@@ -38,9 +40,11 @@ class KafkaConsumer(BaseKafkaClient):
             await self._consumer_client.start()
             logger.info("Starting Kafka consumer for topics: %s", self._consumer_client.subscription())
             self._is_running = True
-        except Exception as e:
-            self._is_running = False
-            logger.error("Failed to start consumer: %s", str(e), exc_info=True)
+        except KafkaConnectionError as e:
+            logger.error("Failed to connect to Kafka: %s", str(e), exc_info=True)
+            raise
+        except NoBrokersAvailable as e:
+            logger.error("No Kafka brokers available: %s", str(e), exc_info=True)
             raise
 
     async def stop(self):
@@ -91,8 +95,12 @@ class KafkaConsumer(BaseKafkaClient):
         parsed_msg = self._parse_message(message)
         for attempt in range(1, self._max_retries + 1):
             try:
+                start = datetime.datetime.now()
+                await asyncio.sleep(1)
                 await event_handler.process_event(parsed_msg)
                 await self.commit(parsed_msg.message_metadata)
+                end = datetime.datetime.now()
+                logger.info("Finished proccess message. Time: %s", end - start)
                 logger.info("The event %r was successful", parsed_msg.event.title())
                 return parsed_msg, None
             except Exception as e:
@@ -113,7 +121,7 @@ class KafkaConsumer(BaseKafkaClient):
                 )
             )
         except KeyError as e:
-            raise ValueError(f"Invalid message format: missing {str(e)}") from e
+            raise ValueError(f"Invalid message format: missing {str(e)}")
 
     def _should_retry(self, attempt: int, error: Exception) -> bool:
         if type(error) in self._retryable_errors and attempt < self._max_retries:
