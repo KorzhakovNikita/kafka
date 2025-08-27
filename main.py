@@ -20,8 +20,9 @@ logger = logging.getLogger(__name__)
 async def start_kafka():
     configure_logging()
     logger.info(f"Start app")
-    event_manager = await get_event_manager()
-    manager = KafkaManager(KafkaConfig(), event_manager)
+    #event_manager = await get_event_manager()
+    config = KafkaConfig()
+    manager = KafkaManager(config)
     asyncio.create_task(manager.run())
     app.state.kafka_manager = manager
 
@@ -60,7 +61,7 @@ async def send_message(topic: str, msg: BaseKafkaMessage):
 
     try:
         async with producer as p:
-            for _ in range(1, 11):
+            for _ in range(1, 10):
                 await p.send(topic, msg)
         response["status"] = "success"
     except Exception as e:
