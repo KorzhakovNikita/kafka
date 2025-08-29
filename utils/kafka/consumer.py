@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 import logging
-from typing import Union, List, Optional, AsyncGenerator, TYPE_CHECKING
+from typing import Union, List, Optional, AsyncGenerator
 from aiokafka import AIOKafkaConsumer, ConsumerRecord, TopicPartition
 import json
 from aiokafka.errors import KafkaConnectionError, NoBrokersAvailable
@@ -68,7 +68,6 @@ class KafkaConsumer(BaseKafkaClient):
             logger.info("Consumer stopped successfully")
         except Exception as e:
             logger.error("Failed to stop consumer: %s", str(e), exc_info=True)
-            raise
         finally:
             self._is_running = False
             self._consumer_client = None
@@ -76,7 +75,6 @@ class KafkaConsumer(BaseKafkaClient):
     async def get_message(self) -> AsyncGenerator[ConsumerRecord, None]:
         async for msg in self._consumer_client:
             yield msg
-            #await self.process_message(msg)
 
     async def commit(self, msg: MessageMetadata):
         tp = TopicPartition(msg.topic, msg.partition)
@@ -92,6 +90,9 @@ class KafkaConsumer(BaseKafkaClient):
         self._consumer_client.subscribe(topics)
         logger.info(f"Subscribed to topics %s:", topics)
 
+    def partitions_for_topic(self) -> Optional[set[int]]:
+        return self._consumer_client.partitions_for_topic(self._topic)
+
     async def health_check(self) -> dict:
         return {
             "status": "running" if self._is_running else "stopped",
@@ -106,9 +107,7 @@ class KafkaConsumer(BaseKafkaClient):
     async def process_message(
         self,
         message: ConsumerRecord
-    ) -> tuple[Optional[KafkaMessage], Optional[Exception]]:
-        # parsed_msg = self._parse_message(message)
-        # event_handler = await self.get_event_handler(message.value["event"])
+    ) -> None:
         try:
             logger.info("%s received the message: %s", self.name, message)
 
@@ -123,7 +122,7 @@ class KafkaConsumer(BaseKafkaClient):
                     end = datetime.datetime.now()
                     logger.error("Finished proccess message. Time: %s", end - start)
                     logger.info("The event %r was successful", parsed_msg.event.title())
-                    return parsed_msg, None
+                    return
                 except Exception as e:
                     if not self._should_retry(attempt, e):
                         await self._dlq_manager.send_to_dlq(message.topic, parsed_msg, e)

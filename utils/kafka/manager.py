@@ -22,10 +22,10 @@ class KafkaManager:
         self._started = False
 
     @property
-    def consumer(self) -> KafkaConsumer:
-        if not self._consumer:
+    def consumer_group(self) -> ConsumerGroup:
+        if not self._consumer_group:
             raise RuntimeError("Consumer not initialized. Call start() first.")
-        return self._consumer
+        return self._consumer_group
 
     @property
     def producer(self) -> KafkaProducer:
@@ -80,17 +80,18 @@ class KafkaManager:
 
         try:
             consumer_tasks = await self._consumer_group.start_consuming()
-            #await asyncio.gather(*consumer_tasks)
 
             while self._started:
-                #await asyncio.wait(consumer_tasks, timeout=5.0)
-                await asyncio.sleep(1)
+                done, pending = await asyncio.wait(
+                    consumer_tasks,
+                    return_when=asyncio.FIRST_COMPLETED,
+                    timeout=5.0
+                )
 
-            # async for message, consumer in self._consumer_group.get_message():
-            #     logger.info("Received message: %s", message)
-                # parsed_msg, error = await consumer.process_message(message)
-                # if error:
-                #     await self._dlq_manager.send_to_dlq(message.topic, parsed_msg, error)
+                for task in done:
+                    if task.exception():
+                        logger.error(f"Consumer crashed: {task.exception()}")
+                        await self._consumer_group.restart_consumer(task)
         except asyncio.CancelledError:
             logger.info("Consumer shutdown requested")
         except Exception as e:

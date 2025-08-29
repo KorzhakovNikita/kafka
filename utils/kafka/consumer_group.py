@@ -22,23 +22,28 @@ class ConsumerGroup:
         self._event_manager = None
         self._dlq_manager = dlq_manager
         self._consumers: list[KafkaConsumer] = []
-        self._queue: asyncio.Queue[ConsumerMessage] = asyncio.Queue()
         self._consumers_task: list[asyncio.Task] = []
+
+    async def create_consumer(self, name: str) -> KafkaConsumer:
+        consumer = KafkaConsumer(
+                self._topic,
+                self._config.consumer_config,
+                self._event_manager,
+                self._dlq_manager,
+                name=name
+        )
+        return consumer
 
     async def start(self):
         self._event_manager = await get_event_manager()
 
         for i in range(self._config.consumer_count):
-            consumer = KafkaConsumer(
-                self._topic,
-                self._config.consumer_config,
-                self._event_manager,
-                self._dlq_manager,
-                name=f"Consumer {i}")
+            consumer = await self.create_consumer(f"Consumer {i}")
             await consumer.start()
             self._consumers.append(consumer)
 
-            #Todo: if len(consumer_count) > topic.partitions log.warning
+            if len(self._consumers) > len(consumer.partitions_for_topic()):
+                logger.warning("The %s idle in the topic: %r", consumer.name, self._topic)
 
     async def start_consuming(self):
 
@@ -57,8 +62,23 @@ class ConsumerGroup:
             for task in self._consumers_task:
                 task.cancel()
         except asyncio.CancelledError:
-            #message about cancel task
+            logger.error("%s was canceled!", task)
             pass
+
+    async def restart_consumer(self, task: asyncio.Task):
+        try:
+            task_index = self._consumers_task.index(task)
+            old_consumer = self._consumers[task_index]
+            await old_consumer.stop()
+
+            new_consumer = await self.create_consumer(old_consumer.name)
+            await new_consumer.start()
+
+            self._consumers[task_index] = new_consumer
+            new_task = asyncio.create_task(self._consumer_processing_loop(new_consumer))
+            self._consumers_task[task_index] = new_task
+        except Exception as e:
+            logger.exception("Failed to restart consumer: %s", str(e))
 
     async def _consumer_processing_loop(self, consumer: KafkaConsumer):
         try:
@@ -66,18 +86,3 @@ class ConsumerGroup:
                 await consumer.process_message(msg)
         except asyncio.CancelledError:
             logger.info(f"{consumer.name} processing cancelled")
-
-    # async def get_message(self) -> AsyncGenerator[ConsumerMessage, None]:
-    #     while True:
-    #         logger.info("\n"
-    #                     "QUEUE=%s"
-    #                     "\n",self._queue
-    #                     )
-    #         msg = await self._queue.get()
-    #         logger.info("\n %s gave partition=%s, offset=%s.\n", msg.consumer.name, msg.message.partition, msg.message.offset)
-    #         yield msg
-    #
-    # async def _consume_message(self, consumer: KafkaConsumer):
-    #     async for message in consumer.get_message():
-    #         await self._queue.put(ConsumerMessage(message, consumer))
-
