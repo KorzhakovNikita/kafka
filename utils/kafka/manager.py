@@ -4,7 +4,6 @@ import logging
 from typing import Optional
 from config import KafkaConfig
 from utils.dlq_manager import DLQManager
-from utils.kafka.consumer import KafkaConsumer
 from utils.kafka.consumer_group import ConsumerGroup
 from utils.kafka.producer import KafkaProducer
 

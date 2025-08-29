@@ -1,15 +1,10 @@
 import asyncio
 import logging
-from typing import AsyncGenerator
-
-from aiokafka import ConsumerRecord
 
 from config import ConsumerGroupConfig
-from utils.containers.event_container import EventContainer
 from utils.containers.service_container import get_event_manager
 from utils.dlq_manager import DLQManager
 from utils.kafka.consumer import KafkaConsumer
-from schemas.types import ConsumerMessage
 
 logger = logging.getLogger(__name__)
 

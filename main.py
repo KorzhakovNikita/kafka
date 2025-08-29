@@ -5,7 +5,6 @@ from fastapi import FastAPI, HTTPException
 from aiokafka.admin import AIOKafkaAdminClient, NewTopic
 
 from config import configure_logging, KafkaConfig
-from utils.containers.service_container import get_event_manager
 from dependencies import KafkaDepState
 from utils.kafka.manager import KafkaManager
 from schemas.messages import BaseKafkaMessage
@@ -20,7 +19,6 @@ logger = logging.getLogger(__name__)
 async def start_kafka():
     configure_logging()
     logger.info(f"Start app")
-    #event_manager = await get_event_manager()
     config = KafkaConfig()
     manager = KafkaManager(config)
     asyncio.create_task(manager.run())
