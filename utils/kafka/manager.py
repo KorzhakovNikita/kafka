@@ -73,6 +73,7 @@ class KafkaManager:
         await self.stop()
         await asyncio.sleep(1)
         await self.start()
+        await self.run()
 
     async def run(self):
         await self.start()
@@ -98,3 +99,7 @@ class KafkaManager:
             raise
         finally:
             await self.stop()
+
+
+config = KafkaConfig()
+kafka_manager = KafkaManager(config)

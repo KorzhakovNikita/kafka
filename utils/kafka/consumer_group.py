@@ -75,6 +75,14 @@ class ConsumerGroup:
         except Exception as e:
             logger.exception("Failed to restart consumer: %s", str(e))
 
+    async def health_check(self) -> dict:
+        health_check_consumers = {}
+
+        for consumer in self._consumers:
+            health_check_consumers[consumer.name] = await consumer.health_check()
+
+        return health_check_consumers
+
     async def _consumer_processing_loop(self, consumer: KafkaConsumer):
         try:
             async for msg in consumer.get_message():
