@@ -3,6 +3,7 @@ import logging
 from aiokafka.protocol.api import Response
 from fastapi import HTTPException
 
+from infrastructure.kafka_service import IKafkaService
 from schemas.messages import BaseKafkaMessage
 from schemas.topic import CreateNewTopic
 from utils.kafka.manager import KafkaManager
@@ -11,7 +12,7 @@ from utils.kafka.manager import KafkaManager
 logger = logging.getLogger(__name__)
 
 
-class KafkaService:
+class KafkaService(IKafkaService):
 
     def __init__(self, kafka_manager: KafkaManager):
         self._kafka_manager = kafka_manager
@@ -33,7 +34,7 @@ class KafkaService:
             logger.error(error_msg, exc_info=True)
             raise e
 
-    async def restart_manager(self):
+    async def restart_manager(self) -> dict:
         try:
             await self._kafka_manager.restart_full()
             return {"message": "Kafka manager restarted successfully"}
