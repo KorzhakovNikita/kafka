@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import logging
 from typing import Union, List, Optional, AsyncGenerator
-
 from aiokafka import AIOKafkaConsumer, ConsumerRecord, TopicPartition
 import json
 from aiokafka.errors import KafkaConnectionError, NoBrokersAvailable
@@ -10,13 +9,23 @@ from config import KafkaConsumerConfig
 from events.base_event import AbstractEvent
 from infrastructure.kafka_clients import BaseKafkaClient
 from schemas.messages import MessageMetadata, KafkaMessage
+from utils.containers.event_container import EventContainer
+from utils.dlq_manager import DLQManager
 
 logger = logging.getLogger(__name__)
 
 
 class KafkaConsumer(BaseKafkaClient):
 
-    def __init__(self, topic: str, consumer_config: KafkaConsumerConfig):
+    def __init__(
+            self,
+            topic: str,
+            consumer_config: KafkaConsumerConfig,
+            event_manager: EventContainer,
+            dlq_manager: DLQManager,
+            name: str,
+    ) -> None:
+        self.name = name
         self._topic = topic
         self._consumer_config = consumer_config
         self._consumer_client: Optional[AIOKafkaConsumer] = None
@@ -24,6 +33,8 @@ class KafkaConsumer(BaseKafkaClient):
         self._max_retries = consumer_config.retry.max_retries
         self._base_delay = consumer_config.retry.backoff_ms
         self._retryable_errors = consumer_config.retry.retryable_errors
+        self._event_manager = event_manager
+        self._dlq_manager = dlq_manager
 
     async def start(self):
         if self._is_running:
@@ -57,7 +68,6 @@ class KafkaConsumer(BaseKafkaClient):
             logger.info("Consumer stopped successfully")
         except Exception as e:
             logger.error("Failed to stop consumer: %s", str(e), exc_info=True)
-            raise
         finally:
             self._is_running = False
             self._consumer_client = None
@@ -80,6 +90,9 @@ class KafkaConsumer(BaseKafkaClient):
         self._consumer_client.subscribe(topics)
         logger.info(f"Subscribed to topics %s:", topics)
 
+    def partitions_for_topic(self) -> Optional[set[int]]:
+        return self._consumer_client.partitions_for_topic(self._topic)
+
     async def health_check(self) -> dict:
         return {
             "status": "running" if self._is_running else "stopped",
@@ -87,26 +100,36 @@ class KafkaConsumer(BaseKafkaClient):
             "assignment": [f"{t}-{p}" for t, p in self._consumer_client.assignment()],
         }
 
+    async def get_event_handler(self, event_name: str) -> AbstractEvent:
+        event_handler: AbstractEvent = await self._event_manager.get_event_handler(event_name)
+        return event_handler
+
     async def process_message(
         self,
-        event_handler: AbstractEvent,
         message: ConsumerRecord
-    ) -> tuple[Optional[KafkaMessage], Optional[Exception]]:
-        parsed_msg = self._parse_message(message)
-        for attempt in range(1, self._max_retries + 1):
-            try:
-                start = datetime.datetime.now()
-                await asyncio.sleep(1)
-                await event_handler.process_event(parsed_msg)
-                await self.commit(parsed_msg.message_metadata)
-                end = datetime.datetime.now()
-                logger.info("Finished proccess message. Time: %s", end - start)
-                logger.info("The event %r was successful", parsed_msg.event.title())
-                return parsed_msg, None
-            except Exception as e:
-                if not self._should_retry(attempt, e):
-                    return parsed_msg, e
-                await self._wait_before_retry(attempt, e)
+    ) -> None:
+        try:
+            logger.info("%s received the message: %s", self.name, message)
+
+            parsed_msg = self._parse_message(message)
+            event_handler = await self.get_event_handler(message.value["event"])
+
+            for attempt in range(1, self._max_retries + 1):
+                try:
+                    start = datetime.datetime.now()
+                    await event_handler.process_event(parsed_msg)
+                    await self.commit(parsed_msg.message_metadata)
+                    end = datetime.datetime.now()
+                    logger.error("Finished proccess message. Time: %s", end - start)
+                    logger.info("The event %r was successful", parsed_msg.event.title())
+                    return
+                except Exception as e:
+                    if not self._should_retry(attempt, e):
+                        await self._dlq_manager.send_to_dlq(message.topic, parsed_msg, e)
+                    await self._wait_before_retry(attempt, e)
+
+        except asyncio.CancelledError:
+            logger.info(f"{self.name} processing cancelled")
 
     @staticmethod
     def _parse_message(message: ConsumerRecord) -> KafkaMessage:
