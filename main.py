@@ -11,7 +11,7 @@ from utils.kafka.manager import kafka_manager
 logger = logging.getLogger(__name__)
 
 
-app = FastAPI(title="Kafka")
+app = FastAPI(title="Kafka-FastAPI-demo")
 
 app.include_router(router)
 
