@@ -19,11 +19,11 @@ class KafkaConsumer(BaseKafkaClient):
 
     def __init__(
             self,
-            topic: str,
             consumer_config: KafkaConsumerConfig,
             event_manager: EventContainer,
             dlq_manager: DLQManager,
             name: str,
+            topic: str,
     ) -> None:
         self.name = name
         self._topic = topic
@@ -126,6 +126,8 @@ class KafkaConsumer(BaseKafkaClient):
                 except Exception as e:
                     if not self._should_retry(attempt, e):
                         await self._dlq_manager.send_to_dlq(message.topic, parsed_msg, e)
+                        await self.commit(parsed_msg.message_metadata)
+                        return
                     await self._wait_before_retry(attempt, e)
 
         except asyncio.CancelledError:
@@ -147,7 +149,7 @@ class KafkaConsumer(BaseKafkaClient):
             raise ValueError(f"Invalid message format: missing {str(e)}")
 
     def _should_retry(self, attempt: int, error: Exception) -> bool:
-        if type(error) in self._retryable_errors and attempt < self._max_retries:
+        if isinstance(error, self._retryable_errors) and attempt < self._max_retries:
             return True
         return False
 
@@ -157,6 +159,6 @@ class KafkaConsumer(BaseKafkaClient):
             "Waiting %.2f seconds before retry (attempt %d, error: %s)",
             delay,
             attempt,
-            str(error)
+            type(error)
         )
         await asyncio.sleep(delay)

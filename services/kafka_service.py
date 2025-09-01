@@ -1,6 +1,5 @@
 import logging
 
-from aiokafka.protocol.api import Response
 from fastapi import HTTPException
 
 from infrastructure.kafka_service import IKafkaService
@@ -20,7 +19,7 @@ class KafkaService(IKafkaService):
     async def send(self, topic: str, msg: BaseKafkaMessage) -> dict:
         try:
             producer = await self._kafka_manager.get_producer()
-            for _ in range(1, 10):
+            for _ in range(1, 2):
                 await producer.send(topic, msg)
 
             response = {
@@ -53,7 +52,7 @@ class KafkaService(IKafkaService):
 
         return response
 
-    async def delete_topic(self, topic: str) -> Response:
+    async def delete_topic(self, topic: str) -> dict:
         admin_client = await self._kafka_manager.get_admin_client()
 
         async with admin_client:
@@ -63,4 +62,4 @@ class KafkaService(IKafkaService):
 
     async def list_topics(self) -> list[str]:
         admin_client = await self._kafka_manager.get_admin_client()
-        return await admin_client._list_topics()
+        return await admin_client.list_topics()

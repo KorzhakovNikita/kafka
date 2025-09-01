@@ -1,7 +1,8 @@
 import asyncio
 import logging
+from typing import Optional
 
-from config import ConsumerGroupConfig
+from config import ConsumerGroupConfig, KafkaConsumerConfig
 from utils.containers.service_container import get_event_manager
 from utils.dlq_manager import DLQManager
 from utils.kafka.consumer import KafkaConsumer
@@ -19,21 +20,28 @@ class ConsumerGroup:
         self._consumers: list[KafkaConsumer] = []
         self._consumers_task: list[asyncio.Task] = []
 
-    async def create_consumer(self, name: str) -> KafkaConsumer:
+    async def create_consumer(
+            self, name: str, topic: str, config: Optional[KafkaConsumerConfig] = None
+    ) -> KafkaConsumer:
+        if config is None:
+            config = self._config.consumer_config
+
         consumer = KafkaConsumer(
-                self._topic,
-                self._config.consumer_config,
-                self._event_manager,
-                self._dlq_manager,
-                name=name
+            config,
+            self._event_manager,
+            self._dlq_manager,
+            name=name,
+            topic=topic
         )
+
         return consumer
 
     async def start(self):
         self._event_manager = await get_event_manager()
 
         for i in range(self._config.consumer_count):
-            consumer = await self.create_consumer(f"Consumer {i}")
+            consumer = await self.create_consumer(name=f"Consumer {i}", topic=self._topic)
+
             await consumer.start()
             self._consumers.append(consumer)
 
@@ -66,7 +74,7 @@ class ConsumerGroup:
             old_consumer = self._consumers[task_index]
             await old_consumer.stop()
 
-            new_consumer = await self.create_consumer(old_consumer.name)
+            new_consumer = await self.create_consumer(name=old_consumer.name, topic=self._topic)
             await new_consumer.start()
 
             self._consumers[task_index] = new_consumer

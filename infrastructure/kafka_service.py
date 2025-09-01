@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
 
-from aiokafka.protocol.api import Response
-
 from schemas.messages import BaseKafkaMessage
 from schemas.topic import CreateNewTopic
 
@@ -28,7 +26,7 @@ class IKafkaService(ABC):
         """Create new topics in the cluster metadata"""
 
     @abstractmethod
-    async def delete_topic(self, topic: str) -> Response:
+    async def delete_topic(self, topic: str) -> dict:
         """Delete new topics in the cluster metadata"""
 
     @abstractmethod

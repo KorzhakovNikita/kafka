@@ -47,7 +47,7 @@ class KafkaAdmin(BaseKafkaClient):
 
     async def create_topic(self, topic: CreateNewTopic) -> dict:
 
-        if topic not in await self._list_topics():
+        if topic.name not in await self.list_topics():
             new_topic = NewTopic(
                 name=topic.name, num_partitions=topic.num_partitions, replication_factor=topic.replication_factor
             )
@@ -56,13 +56,15 @@ class KafkaAdmin(BaseKafkaClient):
 
         return {"message": f"Topic '{topic}' is already exist"}
 
-    async def delete_topic(self, topic: str) -> Response:
-        if topic in await self._list_topics():
-            response = await self._admin_client.delete_topics([topic])
+    async def delete_topic(self, topic: str) -> dict:
+        if topic in await self.list_topics():
+            await self._admin_client.delete_topics([topic])
             logger.info("Topic %r success deleted", topic)
-            return response
+            return {"message": f"Topic '{topic}' deleted"}
 
-    async def _list_topics(self) -> list[str]:
+        return {"message": f"Topic '{topic}' does not exist"}
+
+    async def list_topics(self) -> list[str]:
         return await self._admin_client.list_topics()
 
     async def additional_partitions_for_topic(self): ...

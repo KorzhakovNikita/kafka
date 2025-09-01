@@ -25,3 +25,8 @@ async def send_message(topic_name: str, msg: BaseKafkaMessage, kafka: KafkaServi
 @topic_router.get("", response_model=list[str])
 async def list_topics(kafka: KafkaService):
     return await kafka.list_topics()
+
+
+@topic_router.get("/message_b y_topic")
+async def get_messages(kafka: KafkaService):
+    return await kafka.get_message_topic()

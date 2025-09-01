@@ -19,7 +19,6 @@ class KafkaManager:
         self._consumer_group: Optional[ConsumerGroup] = None
         self._producer: Optional[KafkaProducer] = None
         self._admin_client: Optional[KafkaAdmin] = None
-        self._consumer_tasks: list[asyncio.Task] = []
 
     async def get_producer(self) -> KafkaProducer:
         if self._producer is None:
