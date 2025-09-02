@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from fastapi import HTTPException
 
@@ -6,7 +7,7 @@ from infrastructure.kafka_service import IKafkaService
 from schemas.messages import BaseKafkaMessage
 from schemas.topic import CreateNewTopic
 from utils.kafka.manager import KafkaManager
-
+from utils.pagination import KafkaPagination
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ class KafkaService(IKafkaService):
 
     def __init__(self, kafka_manager: KafkaManager):
         self._kafka_manager = kafka_manager
+        self.pagination: Optional[KafkaPagination] = None
 
     async def send(self, topic: str, msg: BaseKafkaMessage) -> dict:
         try:
@@ -43,6 +45,13 @@ class KafkaService(IKafkaService):
 
     async def health_check(self) -> dict:
         return await self._kafka_manager.health_check()
+
+    async def get_message_by_topic(self, topic: str, partition: int, page: int = 1) -> dict:
+        if self.pagination is None:
+            self.pagination = KafkaPagination()
+
+        messages = await self.pagination.get_page_messages(topic, partition, page)
+        return messages
 
     async def create_topic(self, topic: CreateNewTopic) -> dict:
         admin_client = await self._kafka_manager.get_admin_client()

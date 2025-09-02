@@ -27,6 +27,6 @@ async def list_topics(kafka: KafkaService):
     return await kafka.list_topics()
 
 
-@topic_router.get("/message_b y_topic")
-async def get_messages(kafka: KafkaService):
-    return await kafka.get_message_topic()
+@topic_router.get("/message_by_topic/{topic_name}")
+async def get_messages(topic: str, partition: int, page: int, kafka: KafkaService):
+    return await kafka.get_message_by_topic(topic, partition, page)
